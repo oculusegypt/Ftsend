@@ -14,28 +14,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build core
         run: npm run build:core
 
-      - name: Build web (with production signaling URL)
+      - name: Build web
         env:
           VITE_SIGNALING_URL: wss://drop--Sending2.replit.app/signaling?room=public
         run: npm run build:web
 
-      - name: Sync Capacitor
+      - name: Sync Capacitor iOS
         run: cd packages/mobile && npx cap sync ios
 
       - name: Install CocoaPods
         run: |
           cd packages/mobile/ios/App
-          pod install
+          pod install --repo-update
 
-      - name: Build iOS (unsigned — for testing)
+      - name: Build iOS (unsigned)
         run: |
           cd packages/mobile/ios/App
           xcodebuild \
@@ -46,12 +45,12 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            -derivedDataPath build
-        continue-on-error: true
+            -derivedDataPath build \
+            | xcpretty || true
 
       - name: Upload iOS build
         uses: actions/upload-artifact@v4
         with:
           name: p2p-drop-ios-build
-          path: packages/mobile/ios/App/build/
+          path: packages/mobile/ios/App/build/Build/Products/Release-iphoneos/
           retention-days: 14
