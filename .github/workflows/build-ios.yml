@@ -1,0 +1,57 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build core
+        run: npm run build:core
+
+      - name: Build web (with production signaling URL)
+        env:
+          VITE_SIGNALING_URL: wss://drop--Sending2.replit.app/signaling?room=public
+        run: npm run build:web
+
+      - name: Sync Capacitor
+        run: cd packages/mobile && npx cap sync ios
+
+      - name: Install CocoaPods
+        run: |
+          cd packages/mobile/ios/App
+          pod install
+
+      - name: Build iOS (unsigned — for testing)
+        run: |
+          cd packages/mobile/ios/App
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build
+        continue-on-error: true
+
+      - name: Upload iOS build
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2p-drop-ios-build
+          path: packages/mobile/ios/App/build/
+          retention-days: 14
